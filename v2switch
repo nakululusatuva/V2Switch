@@ -145,26 +145,27 @@ set_v2ray_service_config_directory()
 help()
 {
 	echo "v2switch - Switch between v2ray profiles"
-	echo " list                           List all profiles."
-	echo " current                        Show current profile name."
-	echo " add        [file_path]         Add a JSON config, file name is the profile name."
-	echo " apply      [profile_name]      Apply a profile and start v2ray."
-	echo " remove     [profile_name]      Remove a profile."
-	echo " removeall                      Remove all profiles."
-	echo " setpath    [path]              Set the v2ray config path, default is /etc/v2ray/."
-	echo " help                           Show this message."
+	echo " list                        List all profiles."
+	echo " current                     Show current profile name."
+	echo " add        [file_path]      Add a JSON config, file name is the profile name."
+	echo " apply      [profile_name]   Apply a profile and start v2ray."
+	echo " remove     [profile_name]   Remove a profile."
+	echo " removeall                   Remove all profiles."
+	echo " setpath    [path]           Set the v2ray config path, default is /etc/v2ray/."
+	echo " help                        Show this message."
 }
+
+
+
+
+
+if [ ! `id -u` = 0 ] ; then
+	echo "root privilege required!"
+	exit 2
+fi
 
 check_config_dir
 read_v2switch_config
-# list_profiles
-# current_profile
-# add_profile "/home/example/profile01.json"
-# apply_profile "profile01"
-# remove_profile "profile01"
-# remove_all_profiles
-# set_v2ray_service_config_directory "/etc/v2ray"
-# help
 
 case $1 in
 	"list")
@@ -182,6 +183,8 @@ case $1 in
 	"setpath")
 		set_v2ray_service_config_directory $2;;
 	"help")
+		help;;
+	*)
 		help;;
 esac
 
