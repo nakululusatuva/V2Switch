@@ -4,12 +4,12 @@ Manage multiple V2Ray configs and switch between them.
 ## Install
 Download the script file to anywhere you want and give execute privilege.
 ```
-wget https://github.com/Yirain/V2Switch/blob/master/v2switch.sh
-chmod +x v2switch.sh
+wget https://github.com/Yirain/V2Switch/blob/master/v2switch
+chmod +x v2switch
 ```
 (Optional) Move the script to `/usr/bin` for convenience of use.
 ```
-mv v2switch.sh /usr/bin/
+mv v2switch /usr/bin/
 ```
 
 ## Usage
