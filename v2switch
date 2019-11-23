@@ -3,7 +3,7 @@
 v2ray_config_dir="/etc/v2ray"
 v2switch_dir="/etc/v2switch"
 v2switch_profiles_path=$v2switch_dir"/profiles"
-v2switch_config_path=$v2switch_dir"/v2switch.config"
+v2switch_config_path=$v2switch_dir"/v2switch.conf"
 v2switch_current_profile=""
 
 check_v2switch_config_file()
@@ -18,7 +18,8 @@ check_v2switch_config_file()
 
 check_config_dir()
 {
-	if [ ! -d $v2switch_dir ];then # workdir exists
+	# If v2switch directory not exists
+	if [ ! -d $v2switch_dir ];then
         mkdir $v2switch_dir
 		mkdir $v2switch_profiles_path
 		touch $v2switch_config_path
@@ -56,7 +57,10 @@ add_profile()
 	new_profile_path=$1
 
 	# Check if new profile's path exists
-	if [ ! -f $new_profile_path ] || [ ${#new_profile_path} -eq 0 ]; then
+	if [ ${#new_profile_path} -eq 0 ]; then
+		echo "add: No path specified!"
+		exit 1
+	elif [ ! -f $new_profile_path ]; then
 		echo "add: Invalid file path!"
 		exit 1
 	fi
@@ -85,7 +89,10 @@ apply_profile()
 	applying_profile_name=$1
 
 	# Check if profile exists
-	if [ ! -f $v2switch_profiles_path"/"$applying_profile_name ] || [ ${#applying_profile_name} -eq 0 ]; then
+	if [ ${#applying_profile_name} -eq 0]; then
+		echo "apply: No profile specified!"
+		exit 1
+	elif [ ! -f $v2switch_profiles_path"/"$applying_profile_name ]; then
 		echo "apply: Profile not exists!!"
 		exit 1
 	fi
@@ -103,7 +110,10 @@ remove_profile()
 	removing_profile_name=$1
 
 	# Check if profile exists
-	if [ ! -f $v2switch_profiles_path"/"$removing_profile_name ] || [ ${#removing_profile_name} -eq 0 ]; then
+	if [ ${#removing_profile_name} -eq 0 ]; then
+		echo "remove: No profile specified!"
+		exit 1
+	elif [ ! -f $v2switch_profiles_path"/"$removing_profile_name ]; then
 		echo "remove: Profile not exist!"
 		exit 1
 	fi
@@ -122,13 +132,41 @@ remove_all_profiles()
 	exit 0
 }
 
+rename_profile()
+{
+	old_name=$1
+	new_name=$2
+	# Check parameters.
+	if [ ${#old_name} -eq 0 ] || [ ${#new_name} -eq 0 ]; then
+		echo "rename: No old/new name specified!"
+		exit 1
+	# Check if profile exists.
+	elif [ ! -f $v2switch_profiles_path"/"$old_name ]; then
+		echo "rename: Target profile not exists!"
+		exit 1
+	# Check if the new name occupied.
+	elif [ -f $v2switch_profiles_path"/"$new_name ]; then
+		echo "rename: Profile name \"$new_name\" already exists!"
+		exit 1
+	# Good to go, change the file name.
+	else
+		mv $v2switch_profiles_path"/"$old_name $v2switch_profiles_path"/"$new_name
+		# If the renamed profile is also the current profile, change the "current_file=" in v2switch.conf
+		sed -i "/^current_profile/ccurrent_profile = ${new_name}" $v2switch_config_path
+		exit 0
+	fi
+}
+
 set_v2ray_service_config_directory()
 {
 	new_v2ray_service_config_directory=$1
 
 	# Check if directory exists
-	if [ ! -d $new_v2ray_service_config_directory ]  || [ ${#new_v2ray_service_config_directory} -eq 0 ]; then
-		echo "set: Directory not exists!"
+	if [ ${#new_v2ray_service_config_directory} -eq 0 ]; then
+		echo "setpath: No path specified!"
+		exit 1
+	elif [ ! -d $new_v2ray_service_config_directory ]; then
+		echo "setpath: Directory not exists!"
 		exit 1
 	fi
 	# Valid path and set
@@ -142,6 +180,12 @@ set_v2ray_service_config_directory()
 	exit 0
 }
 
+show_v2ray_service_config_directory()
+{
+	cat $v2switch_config_path | grep "v2ray_config_dir"
+	exit 0
+}
+
 help()
 {
 	echo "v2switch - Switch between v2ray profiles"
@@ -151,22 +195,30 @@ help()
 	echo " apply      [profile_name]   Apply a profile and start v2ray."
 	echo " remove     [profile_name]   Remove a profile."
 	echo " removeall                   Remove all profiles."
-	echo " setpath    [path]           Set the v2ray config path, default is /etc/v2ray/."
+	echo " rename     [old] [new]      Rename a profile."
+	echo " setv2path  [dir_path]       Set the V2Ray config directory, default is /etc/v2ray/."
+	echo " showv2path                  Show the V2Ray config directory path."
 	echo " help                        Show this message."
 }
 
 
 
 
-
+# Check root privilege
 if [ ! `id -u` = 0 ] ; then
 	echo "root privilege required!"
 	exit 2
 fi
 
+# Initialize
 check_config_dir
 read_v2switch_config
 
+# Receive option and parameters
+if [ $# == 0 ]; then
+	echo "No option received!"
+	exit 1
+fi
 case $1 in
 	"list")
 		list_profiles;;
@@ -180,12 +232,16 @@ case $1 in
 		remove_profile $2;;
 	"removeall")
 		remove_all_profiles;;
-	"setpath")
+	"rename")
+		rename_profile $2 $3;;
+	"setv2path")
 		set_v2ray_service_config_directory $2;;
+	"showv2path")
+		show_v2ray_service_config_directory;;
 	"help")
 		help;;
 	*)
-		help;;
+		echo "Unknonw option, use \"help\" to list the usage!";;
 esac
 
 exit 0
