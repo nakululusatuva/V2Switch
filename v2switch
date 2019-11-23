@@ -1,0 +1,188 @@
+#!/bin/bash
+
+v2ray_config_dir="/etc/v2ray"
+v2switch_dir="/etc/v2switch"
+v2switch_profiles_path=$v2switch_dir"/profiles"
+v2switch_config_path=$v2switch_dir"/v2switch.config"
+v2switch_current_profile=""
+
+check_v2switch_config_file()
+{
+	if !(cat $v2switch_config_path | grep "v2ray_config_dir" >/dev/null 2>&1) ||
+		!(cat $v2switch_config_path | grep "current_profile" >/dev/null 2>&1);
+	then
+		echo "Error detected in $v2switch_config_path!"
+		exit 1
+	fi
+}
+
+check_config_dir()
+{
+	if [ ! -d $v2switch_dir ];then # workdir exists
+        mkdir $v2switch_dir
+		mkdir $v2switch_profiles_path
+		touch $v2switch_config_path
+		echo "# Auto-generated configs, do not edit!" > $v2switch_config_path
+		echo "v2ray_config_dir = /etc/v2ray" >> $v2switch_config_path # Set v2ray_config_dir to default
+		echo "current_profile =" >> $v2switch_config_path
+	else
+		check_v2switch_config_file
+	fi
+}
+
+read_v2switch_config()
+{
+	v2ray_config_dir=$(cat $v2switch_config_path | sed 's/ //g' | grep "v2ray_config_dir" | grep -Eo '[^=]+$')
+	v2switch_current_profile=$(cat $v2switch_config_path | sed 's/ //g' | grep "current_profile" | grep -Eo '[^=]+$')
+}
+
+list_profiles()
+{
+	for exist_profile_name in $(ls $v2switch_profiles_path)
+	do
+		echo $exist_profile_name
+	done
+	exit 0
+}
+
+current_profile()
+{
+	echo $v2switch_current_profile
+	exit 0
+}
+
+add_profile()
+{
+	new_profile_path=$1
+
+	# Check if new profile's path exists
+	if [ ! -f $new_profile_path ] || [ ${#new_profile_path} -eq 0 ]; then
+		echo "add: Invalid file path!"
+		exit 1
+	fi
+
+	# Get new profile name
+	new_profile_name=${new_profile_path##*/} # Delete the last '/' and characters at the left
+	new_profile_name=${new_profile_name%.*} # Delete the last '.' and characters at the right
+
+	# Check if new profile name already exist
+	for exist_profile_name in $(ls $v2switch_profiles_path)
+	do
+		if [ $exist_profile_name == $new_profile_name ]; then
+			echo "add: Profile name already exist!"
+			exit 1
+		fi
+	done
+
+	# Add the new profile
+	cat $new_profile_path > $v2switch_profiles_path"/"$new_profile_name
+
+	exit 0
+}
+
+apply_profile()
+{
+	applying_profile_name=$1
+
+	# Check if profile exists
+	if [ ! -f $v2switch_profiles_path"/"$applying_profile_name ] || [ ${#applying_profile_name} -eq 0 ]; then
+		echo "apply: Profile not exists!!"
+		exit 1
+	fi
+	# Exists and apply
+	cat $v2switch_profiles_path"/"$applying_profile_name > $v2ray_config_dir"/config.json"
+	sed -i "/^current_profile/ccurrent_profile = ${applying_profile_name}" $v2switch_config_path
+	# Restart v2ray service
+	systemctl restart v2ray
+
+	exit 0
+}
+
+remove_profile()
+{
+	removing_profile_name=$1
+
+	# Check if profile exists
+	if [ ! -f $v2switch_profiles_path"/"$removing_profile_name ] || [ ${#removing_profile_name} -eq 0 ]; then
+		echo "remove: Profile not exist!"
+		exit 1
+	fi
+	# Exists and remove
+	rm $v2switch_profiles_path"/"$removing_profile_name
+
+	exit 0
+}
+
+remove_all_profiles()
+{
+	for filename in $(ls $v2switch_profiles_path)
+	do
+		rm $v2switch_profiles_path"/"$filename
+	done
+	exit 0
+}
+
+set_v2ray_service_config_directory()
+{
+	new_v2ray_service_config_directory=$1
+
+	# Check if directory exists
+	if [ ! -d $new_v2ray_service_config_directory ]  || [ ${#new_v2ray_service_config_directory} -eq 0 ]; then
+		echo "set: Directory not exists!"
+		exit 1
+	fi
+	# Valid path and set
+	v2ray_config_dir=$new_v2ray_service_config_directory
+	sed -i "/^v2ray_config_dir/cv2ray_config_dir = ${v2ray_config_dir}" $v2switch_config_path
+	# Re-apply the profile
+	if [ ${#v2switch_current_profile} -ne 0 ]; then
+		apply_profile $v2switch_current_profile
+	fi
+
+	exit 0
+}
+
+help()
+{
+	echo "v2switch - Switch between v2ray profiles"
+	echo " list                           List all profiles."
+	echo " current                        Show current profile name."
+	echo " add        [file_path]         Add a JSON config, file name is the profile name."
+	echo " apply      [profile_name]      Apply a profile and start v2ray."
+	echo " remove     [profile_name]      Remove a profile."
+	echo " removeall                      Remove all profiles."
+	echo " setpath    [path]              Set the v2ray config path, default is /etc/v2ray/."
+	echo " help                           Show this message."
+}
+
+check_config_dir
+read_v2switch_config
+# list_profiles
+# current_profile
+# add_profile "/home/example/profile01.json"
+# apply_profile "profile01"
+# remove_profile "profile01"
+# remove_all_profiles
+# set_v2ray_service_config_directory "/etc/v2ray"
+# help
+
+case $1 in
+	"list")
+		list_profiles;;
+	"current")
+		current_profile;;
+	"add")
+		add_profile $2;;
+	"apply")
+		apply_profile $2;;
+	"remove")
+		remove_profile $2;;
+	"removeall")
+		remove_all_profiles;;
+	"setpath")
+		set_v2ray_service_config_directory $2;;
+	"help")
+		help;;
+esac
+
+exit 0
