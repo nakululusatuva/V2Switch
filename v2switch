@@ -1,10 +1,16 @@
 #!/bin/bash
 
-v2ray_config_dir="/etc/v2ray"
+# Vars
+version="0.2"
 v2switch_dir="/etc/v2switch"
 v2switch_profiles_path=$v2switch_dir"/profiles"
 v2switch_config_path=$v2switch_dir"/v2switch.conf"
+v2ray_config_dir="/etc/v2ray"
 v2switch_current_profile=""
+default_ping_test_count=""
+
+# Color definition
+GREEN="32m"
 
 check_v2switch_config_file()
 {
@@ -35,6 +41,7 @@ read_v2switch_config()
 {
 	v2ray_config_dir=$(cat $v2switch_config_path | sed 's/ //g' | grep "v2ray_config_dir" | grep -Eo '[^=]+$')
 	v2switch_current_profile=$(cat $v2switch_config_path | sed 's/ //g' | grep "current_profile" | grep -Eo '[^=]+$')
+	default_ping_test_count=$(cat $v2switch_config_path | sed 's/ //g' | grep "default_ping_test_count" | grep -Eo '[^=]+$')
 }
 
 list_profiles()
@@ -58,7 +65,7 @@ add_profile()
 
 	# Check if new profile's path exists
 	if [ ${#new_profile_path} -eq 0 ]; then
-		echo "add: No path specified!"
+		echo "add: Path not specified!"
 		exit 1
 	elif [ ! -f $new_profile_path ]; then
 		echo "add: Invalid file path!"
@@ -89,8 +96,8 @@ apply_profile()
 	applying_profile_name=$1
 
 	# Check if profile exists
-	if [ ${#applying_profile_name} -eq 0]; then
-		echo "apply: No profile specified!"
+	if [ ${#applying_profile_name} -eq 0 ]; then
+		echo "apply: Profile not specified!"
 		exit 1
 	elif [ ! -f $v2switch_profiles_path"/"$applying_profile_name ]; then
 		echo "apply: Profile not exists!!"
@@ -111,7 +118,7 @@ remove_profile()
 
 	# Check if profile exists
 	if [ ${#removing_profile_name} -eq 0 ]; then
-		echo "remove: No profile specified!"
+		echo "remove: Profile not specified!"
 		exit 1
 	elif [ ! -f $v2switch_profiles_path"/"$removing_profile_name ]; then
 		echo "remove: Profile not exist!"
@@ -125,11 +132,23 @@ remove_profile()
 
 remove_all_profiles()
 {
-	for filename in $(ls $v2switch_profiles_path)
+	while /bin/true
 	do
-		rm $v2switch_profiles_path"/"$filename
+		echo "Remove all profiles? [y/N]: "
+		read option
+		if [ $option == "N" ] || [ $option == "n" ]; then
+			exit 0
+		elif [ $option == "Y" ] || [ $option == "y" ]; then
+			for filename in $(ls $v2switch_profiles_path)
+			do
+				rm $v2switch_profiles_path"/"$filename
+			done
+			exit 0
+		else
+			echo "Unknown option!"
+			continue
+		fi
 	done
-	exit 0
 }
 
 rename_profile()
@@ -138,7 +157,7 @@ rename_profile()
 	new_name=$2
 	# Check parameters.
 	if [ ${#old_name} -eq 0 ] || [ ${#new_name} -eq 0 ]; then
-		echo "rename: No old/new name specified!"
+		echo "rename: Old/new name not specified!"
 		exit 1
 	# Check if profile exists.
 	elif [ ! -f $v2switch_profiles_path"/"$old_name ]; then
@@ -155,6 +174,52 @@ rename_profile()
 		sed -i "/^current_profile/ccurrent_profile = ${new_name}" $v2switch_config_path
 		exit 0
 	fi
+}
+
+ping_and_tracer_and_mtr()
+{
+	ipv=$1
+	target_profile=$2
+	kind=$3
+	profile_path=$v2switch_profiles_path"/"$target_profile
+
+	# Check parameters.
+	if [ $# -ne 3 ]; then
+		echo "ping: Missing parameter!"
+		exit 1
+	# Check if ipv is valid
+	elif [ $ipv != "4" ] && [ $ipv != "6" ]; then
+		echo "ping: Invalid IP version!"
+		exit 1
+	# Check if profile exists.
+	elif [ ! -f $profile_path ]; then
+		echo "ping: Target profile not exists!"
+		exit 1
+	else
+		# Get the hostname from profile
+		hostname=$(cat $profile_path | grep "address" | sed 's/\t//g' | sed 's/.* "\(.*\)",/\1/g')
+		# Start test
+		if [ $kind == "ping" ]; then
+			echo -e "\033[$GREEN * Hostname: $hostname\033[0m"
+			/usr/bin/ping -n -c $default_ping_test_count -$ipv $hostname
+		elif [ $kind == "tracer" ]; then
+			echo -e "\033[$GREEN * Hostname: $hostname\033[0m"
+			/usr/bin/traceroute -n -$ipv $hostname
+		elif [ $kind == "mtr" ]; then
+			/usr/bin/mtr -n -z -$ipv $hostname
+		fi
+		exit 0
+	fi
+}
+
+testall()
+{
+	t = 1
+}
+
+autopick()
+{
+	t = 1
 }
 
 set_v2ray_service_config_directory()
@@ -180,26 +245,31 @@ set_v2ray_service_config_directory()
 	exit 0
 }
 
-show_v2ray_service_config_directory()
-{
-	cat $v2switch_config_path | grep "v2ray_config_dir"
-	exit 0
-}
-
 help()
 {
-	echo "v2switch - Switch between v2ray profiles"
-	echo " list                        List all profiles."
-	echo " current                     Show current profile name."
-	echo " add        [file_path]      Add a JSON config, file name is the profile name."
-	echo " apply      [profile_name]   Apply a profile and start v2ray."
-	echo " remove     [profile_name]   Remove a profile."
-	echo " removeall                   Remove all profiles."
-	echo " rename     [old] [new]      Rename a profile."
-	echo " setv2path  [dir_path]       Set the V2Ray config directory, default is /etc/v2ray/."
-	echo " showv2path                  Show the V2Ray config directory path."
-	echo " help                        Show this message."
+	echo " V2Switch - Manage and switch between v2ray profiles"
+	echo -e "\033[$GREEN * Version: $version\033[0m"
+	echo -e "\033[$GREEN * V2Ray config directory: $v2ray_config_dir\033[0m"
+	echo -e "\033[$GREEN * V2Switch config directory: $v2switch_dir\033[0m"
+	echo " list                               List all profiles."
+	echo " current                            Show current profile's name."
+	echo " add         [file_path]            Add a profile from file \"PROFILE.json\"."
+#	echo " import      [uri]                  Add a profile from uri."
+#	echo " exporturi   [profile]              Export a profile to uri."
+#	echo " exportjson  [profile]              Export a profile to json."
+	echo " apply       [profile]              Apply a profile and restart v2ray."
+	echo " remove      [profile]              Remove a profile."
+	echo " rename      [old] [new]            Rename a profile."
+	echo " removeall                          Remove all profiles."
+	echo " ping        [4/6] [profile]        Ping test with IPv4 or IPv6."
+	echo " tracer      [4/6] [profile]        Traceroute with IPv4 or IPv6."
+	echo " mtr         [4/6] [profile]        MTR test with IPv4 or IPv6."
+#	echo " testall                            Ping test on all profiles."
+#	echo " autopick                           Ping all profiles and apply the lowest one."
+	echo " setv2path   [dir_path]             Set the V2Ray config directory."
+	echo " help                               Show this message."
 }
+
 
 
 
@@ -216,7 +286,7 @@ read_v2switch_config
 
 # Receive option and parameters
 if [ $# == 0 ]; then
-	echo "No option received!"
+	echo "No option received, use \"help\" to list the usage!"
 	exit 1
 fi
 case $1 in
@@ -234,14 +304,18 @@ case $1 in
 		remove_all_profiles;;
 	"rename")
 		rename_profile $2 $3;;
+	"ping")
+		ping_and_tracer_and_mtr $2 $3 "ping";;
+	"tracer")
+		ping_and_tracer_and_mtr $2 $3 "tracer";;
+	"mtr")
+		ping_and_tracer_and_mtr $2 $3 "mtr";;
 	"setv2path")
 		set_v2ray_service_config_directory $2;;
-	"showv2path")
-		show_v2ray_service_config_directory;;
 	"help")
 		help;;
 	*)
-		echo "Unknonw option, use \"help\" to list the usage!";;
+		echo "Unknonw option \"$1\", use \"help\" to list the usage!";;
 esac
 
 exit 0
