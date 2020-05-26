@@ -12,9 +12,18 @@ default_ping_test_count=""
 # Color definition
 GREEN="32m"
 
+# Check root privilege
+check_root_privilege()
+{
+	if [ ! `id -u` = 0 ] ; then
+		echo "root privilege required!"
+		exit 2
+	fi
+}
+
 check_v2switch_config_file()
 {
-	if !(cat $v2switch_config_path | grep "v2ray_config_dir" >/dev/null 2>&1) ||
+	if  !(cat $v2switch_config_path | grep "v2ray_config_dir" >/dev/null 2>&1) ||
 		!(cat $v2switch_config_path | grep "current_profile" >/dev/null 2>&1);
 	then
 		echo "Error detected in $v2switch_config_path!"
@@ -274,11 +283,6 @@ help()
 
 
 
-# Check root privilege
-if [ ! `id -u` = 0 ] ; then
-	echo "root privilege required!"
-	exit 2
-fi
 
 # Initialize
 check_config_dir
@@ -295,14 +299,19 @@ case $1 in
 	"current")
 		current_profile;;
 	"add")
+		check_root_privilege
 		add_profile $2;;
 	"apply")
+		check_root_privilege
 		apply_profile $2;;
 	"remove")
+		check_root_privilege
 		remove_profile $2;;
 	"removeall")
+		check_root_privilege
 		remove_all_profiles;;
 	"rename")
+		check_root_privilege
 		rename_profile $2 $3;;
 	"ping")
 		ping_and_tracer_and_mtr $2 $3 "ping";;
@@ -311,6 +320,7 @@ case $1 in
 	"mtr")
 		ping_and_tracer_and_mtr $2 $3 "mtr";;
 	"setv2path")
+		check_root_privilege
 		set_v2ray_service_config_directory $2;;
 	"help")
 		help;;
