@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Vars
-version="0.2"
+version="0.3"
 v2switch_dir="/etc/v2switch"
 v2switch_profiles_path=$v2switch_dir"/profiles"
 v2switch_config_path=$v2switch_dir"/v2switch.conf"
