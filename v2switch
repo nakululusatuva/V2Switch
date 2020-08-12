@@ -35,7 +35,8 @@ check_config_dir()
 {
 	# If v2switch directory not exists
 	if [ ! -d $v2switch_dir ];then
-        mkdir $v2switch_dir
+		check_root_privilege
+		mkdir $v2switch_dir
 		mkdir $v2switch_profiles_path
 		touch $v2switch_config_path
 		echo "# Auto-generated configs, do not edit!" > $v2switch_config_path
