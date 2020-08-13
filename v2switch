@@ -7,7 +7,7 @@ v2switch_profiles_path=$v2switch_dir"/profiles"
 v2switch_config_path=$v2switch_dir"/v2switch.conf"
 v2ray_config_dir="/etc/v2ray"
 v2switch_current_profile=""
-default_ping_test_count=""
+default_ping_test_count="4"
 
 # Color definition
 GREEN="32m"
@@ -42,6 +42,7 @@ check_config_dir()
 		echo "# Auto-generated configs, do not edit!" > $v2switch_config_path
 		echo "v2ray_config_dir = /etc/v2ray" >> $v2switch_config_path # Set v2ray_config_dir to default
 		echo "current_profile =" >> $v2switch_config_path
+		echo "ping_test_count = 4" >> $v2switch_config_path
 	else
 		check_v2switch_config_file
 	fi
@@ -51,7 +52,7 @@ read_v2switch_config()
 {
 	v2ray_config_dir=$(cat $v2switch_config_path | sed 's/ //g' | grep "v2ray_config_dir" | grep -Eo '[^=]+$')
 	v2switch_current_profile=$(cat $v2switch_config_path | sed 's/ //g' | grep "current_profile" | grep -Eo '[^=]+$')
-	default_ping_test_count=$(cat $v2switch_config_path | sed 's/ //g' | grep "default_ping_test_count" | grep -Eo '[^=]+$')
+	default_ping_test_count=$(cat $v2switch_config_path | sed 's/ //g' | grep "ping_test_count" | grep -Eo '[^=]+$')
 }
 
 list_profiles()
